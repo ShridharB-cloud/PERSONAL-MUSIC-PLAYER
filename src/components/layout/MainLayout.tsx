@@ -9,7 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { musicService } from "@/services/music";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { CloudlyOrb } from "@/components/voice/CloudlyOrb";
-import { ImmersiveBackground } from "./ImmersiveBackground";
+import { AliveBackground } from "./AliveBackground";
 
 export function MainLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -31,7 +31,7 @@ export function MainLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-transparent relative selection:bg-primary/20">
-      <ImmersiveBackground />
+      <AliveBackground />
       {/* Mobile Sidebar */}
       <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
         <SheetTrigger asChild className="lg:hidden absolute top-4 left-4 z-50">

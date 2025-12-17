@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { CloudlyOrb } from "../voice/CloudlyOrb";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { Visualizer } from "../music/Visualizer";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -31,18 +32,38 @@ export function MusicPlayer() {
   } = usePlayer();
 
   const { orbState } = useVoiceAssistant();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
-    if (audioRef.current) {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleCanPlay = () => {
       if (isPlaying) {
-        audioRef.current.play().catch(error => {
+        audio.play().catch(error => {
           console.error("Playback failed:", error);
-          // Handle auto-play policies or errors
         });
-      } else {
-        audioRef.current.pause();
       }
+    };
+
+    // When song changes, load it
+    audio.load();
+
+    // Wait for audio to be ready before playing
+    audio.addEventListener('canplay', handleCanPlay);
+
+    // If already playing when song changes, play immediately when ready
+    if (isPlaying) {
+      audio.play().catch(error => {
+        console.error("Playback failed:", error);
+      });
+    } else {
+      audio.pause();
     }
+
+    return () => {
+      audio.removeEventListener('canplay', handleCanPlay);
+    };
   }, [isPlaying, currentSong]); // Re-run when song or play state changes
 
   useEffect(() => {
@@ -73,124 +94,185 @@ export function MusicPlayer() {
     nextSong();
   };
 
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (info.offset.y > 100) {
+      setIsExpanded(false);
+    }
+  };
+
 
   if (!currentSong) return null;
 
-  const [isExpanded, setIsExpanded] = useState(false);
-
   return (
     <>
-      {/* Expanded Visualizer View */}
-      <div className={cn(
-        "fixed inset-0 z-[60] bg-background/95 backdrop-blur-3xl transition-all duration-500 flex flex-col items-center justify-center p-8",
-        isExpanded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-full pointer-events-none"
-      )}>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-6 right-6"
-          onClick={() => setIsExpanded(false)}
-        >
-          <ChevronDown className="h-8 w-8" />
-        </Button>
-
-        <div className="flex flex-col items-center gap-8 max-w-4xl w-full">
-          <div className="relative group">
-            <img
-              src={currentSong.coverUrl}
-              alt={currentSong.title}
-              className="w-64 h-64 md:w-96 md:h-96 rounded-2xl shadow-2xl object-cover"
-            />
-            {/* Visualizer Overlay */}
-            <div className="absolute -bottom-12 left-0 right-0 flex justify-center">
-              <Visualizer className="h-24 gap-2" />
-            </div>
-          </div>
-
-          <div className="text-center space-y-2">
-            <h2 className="text-3xl md:text-4xl font-bold">{currentSong.title}</h2>
-            <p className="text-xl text-muted-foreground">{currentSong.artist}</p>
-          </div>
-
-          {/* Lyrics Placeholder */}
-          <div className="w-full max-w-lg h-32 overflow-y-auto text-center text-muted-foreground/50 space-y-1 mask-linear-fade">
-            <p>Lyrics not available</p>
-            <p className="text-sm">(Lyrics integration coming soon)</p>
-          </div>
-
-          {/* Expanded Controls */}
-          <div className="w-full max-w-md space-y-6">
-            <div className="flex w-full items-center gap-4">
-              <span className="text-sm text-muted-foreground w-12 text-right">
-                {formatTime(progress)}
-              </span>
-              <Slider
-                value={[progress]}
-                max={duration || 100}
-                step={1}
-                onValueChange={handleSeek}
-                className="flex-1 cursor-pointer"
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.2 }}
+            onDragEnd={handleDragEnd}
+            className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-3xl flex flex-col items-center justify-center p-8"
+          >
+            {/* Ambient Background Effect */}
+            <div className="absolute inset-0 z-[-1] overflow-hidden pointer-events-none">
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] opacity-30 blur-[100px]"
+                style={{ background: `radial-gradient(circle, ${currentSong.coverUrl ? 'rgba(var(--primary-rgb), 0.5)' : '#444'} 0%, transparent 70%)` }}
               />
-              <span className="text-sm text-muted-foreground w-12">
-                {formatTime(duration)}
-              </span>
+              {currentSong.coverUrl && (
+                <img
+                  src={currentSong.coverUrl}
+                  alt=""
+                  className="absolute top-0 left-0 w-full h-full object-cover opacity-20 blur-[80px] scale-150"
+                />
+              )}
             </div>
 
-            <div className="flex items-center justify-center gap-8">
-              <Button variant="ghost" size="icon" onClick={prevSong} className="h-12 w-12">
-                <SkipBack className="h-8 w-8" />
-              </Button>
-              <Button
-                onClick={togglePlay}
-                className="h-16 w-16 rounded-full bg-primary text-primary-foreground hover:scale-105 transition-transform"
-              >
-                {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={nextSong} className="h-12 w-12">
-                <SkipForward className="h-8 w-8" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-6 right-6 hover:bg-white/10 rounded-full transition-colors"
+              onClick={() => setIsExpanded(false)}
+            >
+              <ChevronDown className="h-8 w-8" />
+            </Button>
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 h-24 border-t bg-background/60 backdrop-blur-xl flex items-center justify-between px-4 transition-all duration-300">
+            <div className="flex flex-col items-center gap-8 max-w-4xl w-full">
+              <div className="relative group">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.3 }}
+                  className="relative z-10"
+                >
+                  <img
+                    src={currentSong.coverUrl}
+                    alt={currentSong.title}
+                    className="w-64 h-64 md:w-96 md:h-96 rounded-2xl shadow-2xl object-cover ring-1 ring-white/10"
+                  />
+                </motion.div>
+
+                {/* Visualizer Overlay */}
+                <div className="absolute -bottom-12 left-0 right-0 flex justify-center z-20">
+                  <Visualizer className="h-24 gap-2" />
+                </div>
+              </div>
+
+              <div className="text-center space-y-2 relative z-10">
+                <motion.h2
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/70"
+                >
+                  {currentSong.title}
+                </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-xl text-muted-foreground"
+                >
+                  {currentSong.artist}
+                </motion.p>
+              </div>
+
+              {/* Lyrics Placeholder */}
+              <div className="w-full max-w-lg h-32 overflow-y-auto text-center text-muted-foreground/50 space-y-1 mask-linear-fade relative z-10">
+                <p>Lyrics not available</p>
+                <p className="text-sm">(Lyrics integration coming soon)</p>
+              </div>
+
+              {/* Expanded Controls */}
+              <div className="w-full max-w-md space-y-6 relative z-10">
+                <div className="flex w-full items-center gap-4">
+                  <span className="text-sm text-muted-foreground w-12 text-right">
+                    {formatTime(progress)}
+                  </span>
+                  <Slider
+                    value={[progress]}
+                    max={duration || 100}
+                    step={1}
+                    onValueChange={handleSeek}
+                    className="flex-1 cursor-pointer"
+                  />
+                  <span className="text-sm text-muted-foreground w-12">
+                    {formatTime(duration)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-center gap-8">
+                  <motion.div whileTap={{ scale: 0.9 }}>
+                    <Button variant="ghost" size="icon" onClick={prevSong} className="h-12 w-12 hover:bg-white/10 rounded-full">
+                      <SkipBack className="h-8 w-8" />
+                    </Button>
+                  </motion.div>
+
+                  <motion.div whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.05 }}>
+                    <Button
+                      onClick={togglePlay}
+                      className="h-20 w-20 rounded-full bg-primary text-primary-foreground hover:scale-105 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                    >
+                      {isPlaying ? <Pause className="h-10 w-10 fill-current" /> : <Play className="h-10 w-10 ml-1 fill-current" />}
+                    </Button>
+                  </motion.div>
+
+                  <motion.div whileTap={{ scale: 0.9 }}>
+                    <Button variant="ghost" size="icon" onClick={nextSong} className="h-12 w-12 hover:bg-white/10 rounded-full">
+                      <SkipForward className="h-8 w-8" />
+                    </Button>
+                  </motion.div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="fixed bottom-0 left-0 right-0 z-50 h-24 border-t bg-background/80 backdrop-blur-md flex items-center justify-between px-4 transition-all duration-300 supports-[backdrop-filter]:bg-background/60">
         <audio
           ref={audioRef}
           key={currentSong.id} // Forces remount on song change
           src={currentSong.audioUrl}
           crossOrigin="anonymous"
-          autoPlay={isPlaying}
           onTimeUpdate={handleTimeUpdate}
           onEnded={handleEnded}
           onError={(e) => console.error("Audio playback error:", e.currentTarget.error)}
+          onLoadedMetadata={(e) => {
+            const audio = e.currentTarget;
+            console.log("Audio loaded:", audio.src, "Duration:", audio.duration);
+          }}
         />
         {/* Currently playing info */}
-        <div className="flex items-center gap-4 w-64">
-          <div className="relative group cursor-pointer" onClick={() => setIsExpanded(true)}>
+        <div className="flex items-center gap-4 w-64 group/player">
+          <div className="relative group cursor-pointer overflow-hidden rounded-md" onClick={() => setIsExpanded(true)}>
             <img
               src={currentSong.coverUrl}
               alt={currentSong.title}
-              className="h-14 w-14 rounded-md object-cover shadow-md group-hover:opacity-80 transition-opacity"
+              className="h-14 w-14 object-cover shadow-md transition-transform duration-500 group-hover:scale-110"
             />
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
               <Maximize2 className="h-6 w-6 text-white drop-shadow-md" />
             </div>
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-foreground truncate cursor-pointer hover:underline" onClick={() => setIsExpanded(true)}>{currentSong.title}</p>
+            <p className="font-medium text-foreground truncate cursor-pointer hover:text-primary transition-colors" onClick={() => setIsExpanded(true)}>{currentSong.title}</p>
             <p className="text-sm text-muted-foreground truncate">{currentSong.artist}</p>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => toggleLike(currentSong.id, !!currentSong.liked)}
-            className="shrink-0 hover:bg-white/10"
+            className="shrink-0 hover:bg-white/10 hover:text-red-500 transition-colors"
           >
             <Heart
               className={cn(
-                "h-5 w-5 transition-colors",
-                currentSong.liked ? "fill-primary text-primary" : "text-muted-foreground"
+                "h-5 w-5 transition-all duration-300",
+                currentSong.liked ? "fill-red-500 text-red-500 scale-110" : "text-muted-foreground"
               )}
             />
           </Button>
@@ -199,29 +281,35 @@ export function MusicPlayer() {
         {/* Player controls */}
         <div className="flex flex-col items-center gap-2 flex-1 max-w-xl">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-white/10">
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-full">
               <Shuffle className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={prevSong} className="text-foreground hover:bg-white/10">
+
+            <Button variant="ghost" size="icon" onClick={prevSong} className="text-foreground hover:bg-white/10 rounded-full">
               <SkipBack className="h-5 w-5" />
             </Button>
-            <Button
-              onClick={togglePlay}
-              className="h-10 w-10 rounded-full bg-foreground text-background hover:bg-foreground/90 hover:scale-105 transition-transform shadow-lg"
-            >
-              {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={nextSong} className="text-foreground hover:bg-white/10">
+
+            <motion.div whileTap={{ scale: 0.9 }}>
+              <Button
+                onClick={togglePlay}
+                className="h-10 w-10 rounded-full bg-foreground text-background hover:bg-foreground/90 hover:scale-105 transition-transform shadow-lg flex items-center justify-center"
+              >
+                {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 ml-0.5 fill-current" />}
+              </Button>
+            </motion.div>
+
+            <Button variant="ghost" size="icon" onClick={nextSong} className="text-foreground hover:bg-white/10 rounded-full">
               <SkipForward className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-white/10">
+
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-full">
               <Repeat className="h-4 w-4" />
             </Button>
           </div>
 
           {/* Progress bar */}
-          <div className="flex w-full items-center gap-2">
-            <span className="text-xs text-muted-foreground w-10 text-right">
+          <div className="flex w-full items-center gap-2 group/progress">
+            <span className="text-xs text-muted-foreground w-10 text-right tabular-nums">
               {formatTime(progress)}
             </span>
             <Slider
@@ -229,9 +317,9 @@ export function MusicPlayer() {
               max={duration || 100}
               step={1}
               onValueChange={handleSeek}
-              className="flex-1 cursor-pointer"
+              className="flex-1 cursor-pointer transition-all hover:h-2"
             />
-            <span className="text-xs text-muted-foreground w-10">
+            <span className="text-xs text-muted-foreground w-10 tabular-nums">
               {formatTime(duration)}
             </span>
           </div>
@@ -250,7 +338,7 @@ export function MusicPlayer() {
               className="w-24 cursor-pointer"
             />
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setIsExpanded(true)} className="ml-2">
+          <Button variant="ghost" size="icon" onClick={() => setIsExpanded(true)} className="ml-2 hover:bg-white/10 rounded-full">
             <Maximize2 className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>

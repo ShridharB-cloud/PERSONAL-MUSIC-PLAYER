@@ -3,6 +3,7 @@ import { Song } from "@/types/music";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { TiltCard } from "@/components/ui/TiltCard";
 
 interface SongCardProps {
   song: Song;
@@ -29,7 +30,7 @@ export function SongCard({ song, queue }: SongCardProps) {
           alt={song.title}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
         />
-        
+
         {/* Play overlay */}
         <div
           className={cn(
