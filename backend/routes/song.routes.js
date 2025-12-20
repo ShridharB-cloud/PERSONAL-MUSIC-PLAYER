@@ -9,7 +9,8 @@ import {
   unlikeSong,
   getLikedSongs,
   recordPlay,
-  getRecentlyPlayed
+  getRecentlyPlayed,
+  importYoutube
 } from '../controllers/song.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import { uploadSongFiles } from '../middleware/upload.middleware.js';
@@ -37,6 +38,7 @@ const uploadValidation = [
 
 // Song CRUD
 router.post('/upload', uploadSongFiles, uploadValidation, uploadSong);
+router.post('/import-youtube', importYoutube);
 router.get('/', getSongs);
 router.get('/liked', getLikedSongs);
 router.get('/recent', getRecentlyPlayed);

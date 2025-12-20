@@ -4,6 +4,13 @@ import LikedSong from '../models/LikedSong.js';
 import ListeningHistory from '../models/ListeningHistory.js';
 import cloudinary from '../config/cloudinary.js';
 import { getIO } from '../socket.js';
+import { downloadYoutubeAudio } from '../utils/youtube.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Helper to upload buffer to cloudinary
 const uploadToCloudinary = (buffer, options) => {
@@ -25,19 +32,51 @@ export const uploadSong = async (req, res) => {
     }
 
     const { title, artist, album, duration } = req.body;
-    const audioFile = req.files?.audio?.[0];
-    const coverFile = req.files?.cover?.[0];
+    console.log('[DEBUG] Upload Request Body Keys:', Object.keys(req.body));
+    console.log('[DEBUG] tempAudioPath value:', req.body.tempAudioPath);
 
-    if (!audioFile) {
+    // Handle files from array (multer.any())
+    const files = req.files || [];
+    const audioFile = files.find(f => f.fieldname === 'audio');
+    const coverFile = files.find(f => f.fieldname === 'cover');
+
+    if (!audioFile && !req.body.tempAudioPath) {
       return res.status(400).json({ error: 'Audio file is required' });
     }
 
     // Upload audio to Cloudinary
-    const audioResult = await uploadToCloudinary(audioFile.buffer, {
-      folder: 'cloudly/audio',
-      resource_type: 'video',
-      format: 'mp3'
-    });
+    let audioResult;
+    if (audioFile) {
+      audioResult = await uploadToCloudinary(audioFile.buffer, {
+        folder: 'cloudly/audio',
+        resource_type: 'video',
+        format: 'mp3'
+      });
+    } else if (req.body.tempAudioPath) {
+      // Validate path is in temp dir
+      const tempDir = path.join(__dirname, '..', 'temp');
+      const resolvedPath = path.resolve(req.body.tempAudioPath);
+      if (!resolvedPath.startsWith(tempDir)) {
+        return res.status(400).json({ error: 'Invalid temporary file path' });
+      }
+
+      if (!fs.existsSync(resolvedPath)) {
+        return res.status(400).json({ error: 'Temporary file expired or not found' });
+      }
+
+      audioResult = await cloudinary.uploader.upload(resolvedPath, {
+        folder: 'cloudly/audio',
+        resource_type: 'video',
+        format: 'mp3'
+      });
+
+      // Clean up temp file
+      fs.unlink(resolvedPath, (err) => {
+        if (err) console.error('Error deleting temp audio:', err);
+      });
+    } else {
+      return res.status(400).json({ error: 'Audio file is required' });
+    }
 
     // Upload cover if provided
     let coverResult = null;
@@ -46,6 +85,20 @@ export const uploadSong = async (req, res) => {
         folder: 'cloudly/covers',
         transformation: [{ width: 500, height: 500, crop: 'fill' }]
       });
+    } else if (req.body.tempCoverPath) {
+      // Validate path is in temp dir
+      const tempDir = path.join(__dirname, '..', 'temp');
+      const resolvedPath = path.resolve(req.body.tempCoverPath);
+      if (resolvedPath.startsWith(tempDir) && fs.existsSync(resolvedPath)) {
+        coverResult = await cloudinary.uploader.upload(resolvedPath, {
+          folder: 'cloudly/covers',
+          transformation: [{ width: 500, height: 500, crop: 'fill' }]
+        });
+        // Clean up temp file
+        fs.unlink(resolvedPath, (err) => {
+          if (err) console.error('Error deleting temp cover:', err);
+        });
+      }
     }
 
     // Create song
@@ -76,6 +129,23 @@ export const uploadSong = async (req, res) => {
   } catch (error) {
     console.error('Upload song error:', error);
     res.status(500).json({ error: error.message || 'Failed to upload song' });
+  }
+};
+
+// Import from YouTube
+export const importYoutube = async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    const result = await downloadYoutubeAudio(url);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Import YouTube error:', error);
+    res.status(500).json({ error: 'Failed to import from YouTube. ' + error.message });
   }
 };
 

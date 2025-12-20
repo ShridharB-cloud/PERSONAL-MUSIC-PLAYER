@@ -110,6 +110,11 @@ export const musicService = {
     return transformSong(response.data.song);
   },
 
+  importYoutube: async (url: string): Promise<any> => {
+    const response = await api.post('/songs/import-youtube', { url });
+    return response.data;
+  },
+
   toggleLikeSong: async (songId: string, isLiked: boolean): Promise<void> => {
     if (isLiked) {
       await api.delete(`/songs/${songId}/like`);

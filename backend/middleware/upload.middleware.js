@@ -70,11 +70,8 @@ export const uploadImage = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
-// Combined upload for song (audio + cover)
+// Combined upload using any() to allow flexible file fields
 export const uploadSongFiles = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }
-}).fields([
-  { name: 'audio', maxCount: 1 },
-  { name: 'cover', maxCount: 1 }
-]);
+}).any();
