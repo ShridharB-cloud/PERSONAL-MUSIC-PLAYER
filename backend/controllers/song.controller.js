@@ -164,7 +164,7 @@ export const getSongs = async (req, res) => {
 
     const songs = await Song.find(query)
       .populate('uploadedBy', 'name avatarUrl')
-      .sort({ createdAt: -1 })
+      .sort({ title: 1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
 
