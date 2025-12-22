@@ -1,6 +1,7 @@
-import { Home, Library, Upload, ListMusic, Heart, User, Music2 } from "lucide-react";
+import { Home, Library, Upload, ListMusic, Heart, User, Music2, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
+import { authService } from "@/services/auth";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
@@ -48,8 +49,22 @@ export function Sidebar({ onLinkClick }: SidebarProps) {
         </ul>
       </nav>
 
+      {/* Logout Button */}
+      <div className="absolute bottom-6 left-0 right-0 px-3 z-50">
+        <button
+          onClick={() => authService.logout()}
+          className={cn(
+            "w-full flex items-center gap-4 rounded-lg px-4 py-3 text-muted-foreground transition-all duration-200",
+            "hover:bg-red-500/10 hover:text-red-500"
+          )}
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="font-medium">Log Out</span>
+        </button>
+      </div>
+
       {/* Decorative gradient */}
-      <div className="absolute bottom-24 left-0 right-0 h-32 bg-gradient-to-t from-cloudly-sidebar to-transparent pointer-events-none" />
+      <div className="absolute bottom-24 left-0 right-0 h-32 bg-gradient-to-t from-cloudly-sidebar to-transparent pointer-events-none opacity-0" />
     </aside>
   );
 }
