@@ -156,7 +156,8 @@ export const getSongs = async (req, res) => {
     const query = {};
 
     // Enforce privacy: only show user's own songs
-    query.uploadedBy = req.user._id;
+    // Enforce privacy: only show user's own songs
+    // query.uploadedBy = req.user._id; // DISABLED: Making library public for all users
 
     if (search) {
       query.$text = { $search: search };
