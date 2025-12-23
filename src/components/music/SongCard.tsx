@@ -1,9 +1,16 @@
-import { Play, Heart } from "lucide-react";
+import { Play, Heart, MoreVertical, ListPlus } from "lucide-react";
 import { Song } from "@/types/music";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TiltCard } from "@/components/ui/TiltCard";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/components/ui/use-toast";
 
 interface SongCardProps {
   song: Song;
@@ -11,8 +18,18 @@ interface SongCardProps {
 }
 
 export function SongCard({ song, queue }: SongCardProps) {
-  const { playSong, currentSong, isPlaying, toggleLike } = usePlayer();
+  const { playSong, currentSong, isPlaying, toggleLike, addToQueue } = usePlayer();
   const isCurrentSong = currentSong?.id === song.id;
+  const { toast } = useToast();
+
+  const handleAddToQueue = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    addToQueue(song);
+    toast({
+      title: "Added to Queue",
+      description: `${song.title} will play next.`,
+    });
+  };
 
   return (
     <div
@@ -71,6 +88,31 @@ export function SongCard({ song, queue }: SongCardProps) {
             )}
           />
         </Button>
+      </div>
+
+      {/* Menu Button - Only visible on hover */}
+      <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70 ring-0 focus:ring-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48 backdrop-blur-md bg-black/80 border-white/10 text-white">
+            <DropdownMenuItem
+              onClick={handleAddToQueue}
+              className="cursor-pointer focus:bg-white/10 focus:text-white"
+            >
+              <ListPlus className="mr-2 h-4 w-4" />
+              <span>Play Next</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Song info */}

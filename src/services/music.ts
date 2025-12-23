@@ -121,5 +121,9 @@ export const musicService = {
     } else {
       await api.post(`/songs/${songId}/like`);
     }
+  },
+
+  recordPlay: async (songId: string): Promise<void> => {
+    await api.post(`/songs/${songId}/play`);
   }
 };

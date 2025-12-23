@@ -13,6 +13,7 @@ import { AliveBackground } from "./AliveBackground";
 import { AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { PageTransition } from "./PageTransition";
+import { Header } from "./Header";
 
 export function MainLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -54,6 +55,7 @@ export function MainLayout() {
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
         <main className="flex-1 overflow-y-auto p-6 cloudly-scrollbar pb-32">
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>

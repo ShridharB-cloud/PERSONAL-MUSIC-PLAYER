@@ -8,6 +8,8 @@ import { CloudlyOrb } from "../voice/CloudlyOrb";
 import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { Visualizer } from "../music/Visualizer";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
+
+
 import { LiquidEffect } from "@/components/ui/liquid-effect";
 
 function formatTime(seconds: number): string {
@@ -34,6 +36,16 @@ export function MusicPlayer() {
 
   const { orbState, toggleRecording } = useVoiceAssistant();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [audioSrc, setAudioSrc] = useState<string>("");
+
+  useEffect(() => {
+    if (currentSong) {
+      // Reset state for new song
+      setAudioSrc(currentSong.audioUrl);
+    }
+  }, [currentSong]);
+
+
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -161,10 +173,7 @@ export function MusicPlayer() {
                   />
                 </motion.div>
 
-                {/* Visualizer Overlay */}
-                <div className="absolute -bottom-12 left-0 right-0 flex justify-center z-20">
-                  <Visualizer className="h-24 gap-2" />
-                </div>
+
               </div>
 
               <div className="text-center space-y-2 relative z-10">
@@ -194,6 +203,11 @@ export function MusicPlayer() {
 
               {/* Expanded Controls */}
               <div className="w-full max-w-md space-y-6 relative z-10">
+                {/* Visualizer */}
+                <div className="w-full flex justify-center h-12 items-end opacity-80">
+                  <Visualizer className="h-full gap-1.5" />
+                </div>
+
                 <div className="flex w-full items-center gap-4">
                   <span className="text-sm text-muted-foreground w-12 text-right">
                     {formatTime(progress)}
@@ -242,7 +256,7 @@ export function MusicPlayer() {
         <audio
           ref={audioRef}
           key={currentSong.id} // Forces remount on song change
-          src={currentSong.audioUrl}
+          src={audioSrc}
           crossOrigin="anonymous"
           onTimeUpdate={handleTimeUpdate}
           onEnded={handleEnded}
@@ -281,6 +295,7 @@ export function MusicPlayer() {
               )}
             />
           </Button>
+
         </div>
 
         {/* Player controls */}
@@ -347,7 +362,7 @@ export function MusicPlayer() {
             <Maximize2 className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>
-      </div>
+      </div >
     </>
   );
 }

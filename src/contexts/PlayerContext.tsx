@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Song, PlayerState } from "@/types/music";
 import { musicService } from "@/services/music";
@@ -12,6 +12,7 @@ interface PlayerContextType extends PlayerState {
   setProgress: (progress: number) => void;
   toggleLike: (songId: string, currentLikedStatus: boolean) => void;
   shuffleQueue: () => void;
+  addToQueue: (song: Song) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -27,6 +28,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     queue: [],
     queueIndex: 0,
   });
+
+  // Record play history
+  useEffect(() => {
+    if (state.currentSong) {
+      // Debounce slightly to avoid recording rapid skips
+      const timer = setTimeout(() => {
+        musicService.recordPlay(state.currentSong!.id).catch(err =>
+          console.error("Failed to record play:", err)
+        );
+      }, 5000); // Record after 5 seconds of listening
+
+      return () => clearTimeout(timer);
+    }
+  }, [state.currentSong?.id]);
 
   const playSong = useCallback((song: Song, queue?: Song[]) => {
     const newQueue = queue || [song];
@@ -139,6 +154,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const addToQueue = useCallback((song: Song) => {
+    setState((prev) => {
+      if (!prev.currentSong) {
+        // If nothing playing, just play this song
+        return {
+          ...prev,
+          currentSong: song,
+          isPlaying: true,
+          queue: [song],
+          queueIndex: 0,
+          progress: 0,
+          duration: song.duration,
+        };
+      }
+
+      // Add to queue right after current song
+      const newQueue = [...prev.queue];
+      newQueue.splice(prev.queueIndex + 1, 0, song);
+
+      return {
+        ...prev,
+        queue: newQueue,
+      };
+    });
+  }, []);
+
   return (
     <PlayerContext.Provider
       value={{
@@ -151,6 +192,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setProgress,
         toggleLike,
         shuffleQueue,
+        addToQueue,
       }}
     >
       {children}

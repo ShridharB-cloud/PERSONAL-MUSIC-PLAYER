@@ -33,5 +33,17 @@ export const authService = {
 
   getToken: () => {
     return localStorage.getItem('token');
+  },
+
+  updateProfile: async (data: FormData) => {
+    const response = await api.put('/users/profile', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    return response.data;
   }
 };
